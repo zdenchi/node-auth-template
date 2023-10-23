@@ -2,7 +2,7 @@
 
 ## TO-DO
 
-- [ ] Signup
+- [x] Signup
 - [ ] Login
 - [ ] Logout
 - [ ] Refresh tokens + invalidate old token
