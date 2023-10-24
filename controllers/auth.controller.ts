@@ -88,7 +88,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
 
     return res.status(200).json({ accessToken, user: userData });
   } catch (error: any) {
-    console.log('[UserController](signup)', error.message);
+    console.log('[AuthController](signup)', error.message);
     next(error);
   }
 }
@@ -150,7 +150,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     return res.status(200).json({ accessToken, user: userData });
   } catch (error: any) {
-    console.log('[UserController](login)', error.message);
+    console.log('[AuthController](login)', error.message);
     next(error);
   }
 }
@@ -170,7 +170,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
     res.clearCookie('refresh-token');
     return res.status(200).json({ message: 'Logout successful' });
   } catch (error: any) {
-    console.log('[UserController](logout)', error.message);
+    console.log('[AuthController](logout)', error.message);
     next(error);
   }
 }
@@ -205,7 +205,7 @@ export const refreshTokens = async (req: Request, res: Response, next: NextFunct
 
     return res.status(200).json({ accessToken });
   } catch (error: any) {
-    console.log('[UserController](refreshTokens)', error.message);
+    console.log('[AuthController](refreshTokens)', error.message);
     next(error);
   }
 }
