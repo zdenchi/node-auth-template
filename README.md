@@ -4,7 +4,7 @@
 
 - [x] Signup
 - [x] Login
-- [ ] Logout
+- [x] Logout
 - [ ] Refresh tokens + invalidate old token
 - [ ] Get user data + isAuth middleware
 - [ ] Change user password

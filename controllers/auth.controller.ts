@@ -154,3 +154,23 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     next(error);
   }
 }
+
+export const logout = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const refreshToken = req.cookies['refresh-token'];
+
+    if (!refreshToken) {
+      return res.status(400).json({ message: 'Bad Request' });
+    }
+
+    await prisma.refresh_tokens.update({
+      where: { id: refreshToken },
+      data: { revoked: true },
+    });
+    res.clearCookie('refresh-token');
+    return res.status(200).json({ message: 'Logout successful' });
+  } catch (error: any) {
+    console.log('[UserController](logout)', error.message);
+    next(error);
+  }
+}
