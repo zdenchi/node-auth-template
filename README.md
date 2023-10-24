@@ -3,7 +3,7 @@
 ## TO-DO
 
 - [x] Signup
-- [ ] Login
+- [x] Login
 - [ ] Logout
 - [ ] Refresh tokens + invalidate old token
 - [ ] Get user data + isAuth middleware
