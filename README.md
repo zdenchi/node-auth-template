@@ -8,8 +8,8 @@
 - [x] Refresh tokens + invalidate old token
 - [x] Get user data + isAuth middleware
 - [x] Change user password
-- [ ] Send email service
-- [ ] Send SMS service
+- [x] Send email service
+- [x] Send SMS service
 - [ ] Forgot + reset password
 - [ ] Email confirmation
 - [ ] Phone confirmation
