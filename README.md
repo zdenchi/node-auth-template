@@ -5,7 +5,7 @@
 - [x] Signup
 - [x] Login
 - [x] Logout
-- [ ] Refresh tokens + invalidate old token
+- [x] Refresh tokens + invalidate old token
 - [ ] Get user data + isAuth middleware
 - [ ] Change user password
 - [ ] Send email service

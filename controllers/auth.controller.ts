@@ -14,12 +14,12 @@ const userSelect = Prisma.validator<Prisma.usersDefaultArgs>()({})
 export type Profile = Prisma.profilesGetPayload<typeof profileSelect>;
 export type User = Prisma.usersGetPayload<typeof userSelect>;
 
-const generateJWTTokens = async (user: User) => {
-  const accessToken = await signToken({ id: user.id }, PRIVATE_KEY, {
-    exp: '30m',
+const generateJWTTokens = async (userId: number, refreshTokenParent: string | null = null) => {
+  const accessToken = await signToken({ id: userId }, PRIVATE_KEY, {
+    exp: '15m',
   });
   const refreshToken = await prisma.refresh_tokens.create({
-    data: { user_id: user.id },
+    data: { user_id: userId, parent: refreshTokenParent },
     select: { id: true },
   });
   return {
@@ -70,7 +70,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
       },
     }) as User;
 
-    const { accessToken, refreshToken } = await generateJWTTokens(newUser);
+    const { accessToken, refreshToken } = await generateJWTTokens(newUser.id);
 
     res.cookie('refresh-token', refreshToken, {
       path: '/',
@@ -123,7 +123,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const { accessToken, refreshToken } = await generateJWTTokens(user);
+    const { accessToken, refreshToken } = await generateJWTTokens(user.id);
 
     await prisma.users.update({
       where: { id: user.id },
@@ -171,6 +171,41 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
     return res.status(200).json({ message: 'Logout successful' });
   } catch (error: any) {
     console.log('[UserController](logout)', error.message);
+    next(error);
+  }
+}
+
+export const refreshTokens = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tokenId = req.cookies['refresh-token'];
+
+    if (!tokenId) {
+      return res.status(401).json({ message: 'No refresh token' });
+    }
+
+    const session = await prisma.refresh_tokens.update({
+      where: { id: tokenId, revoked: false },
+      data: { revoked: true },
+      select: { user_id: true },
+    });
+
+    if (!session || !session.user_id) {
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+
+    const { accessToken, refreshToken } = await generateJWTTokens(session.user_id, tokenId);
+
+    res.cookie('refresh-token', refreshToken, {
+      path: '/',
+      maxAge: 60 * 24 * 60 * 60 * 1000, // 60 days
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
+    return res.status(200).json({ accessToken });
+  } catch (error: any) {
+    console.log('[UserController](refreshTokens)', error.message);
     next(error);
   }
 }
