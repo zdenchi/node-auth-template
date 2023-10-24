@@ -4,15 +4,40 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { signToken } from '../utils/token';
 import { hash, verify } from 'argon2';
 import { PRIVATE_KEY } from '../config';
-import { getUserData } from '../utils/getUserData';
 import { user_status } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const profileSelect = Prisma.validator<Prisma.profilesDefaultArgs>()({})
-const userSelect = Prisma.validator<Prisma.usersDefaultArgs>()({})
-export type Profile = Prisma.profilesGetPayload<typeof profileSelect>;
+const userSelect = Prisma.validator<Prisma.usersDefaultArgs>()({
+  select: {
+    id: true,
+    email: true,
+    phone: true,
+    username: true,
+    email_confirmed_at: true,
+    phone_confirmed_at: true,
+    role: true,
+    profiles: {
+      select: {
+        firstname: true,
+        lastname: true,
+        middlename: true,
+        birthday: true,
+        gender: true,
+        country: true,
+        city: true,
+      }
+    }
+  },
+})
+const userSelectWithPassword = Prisma.validator<Prisma.usersDefaultArgs>()({
+  select: {
+    ...userSelect.select,
+    password: true,
+  },
+})
 export type User = Prisma.usersGetPayload<typeof userSelect>;
+export type UserWithPassword = Prisma.usersGetPayload<typeof userSelectWithPassword>;
 
 const generateJWTTokens = async (userId: number, refreshTokenParent: string | null = null) => {
   const accessToken = await signToken({ id: userId }, PRIVATE_KEY, {
@@ -38,7 +63,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     const clientUA = req.headers['user-agent'];
     const type = email ? 'email' : 'phone';
 
-    if (!(email && phone) || !(password || confirmPassword)) {
+    if (!(email || phone) || !(password && confirmPassword)) {
       return res.status(400).json({ message: 'Bad Request' });
     }
 
@@ -56,7 +81,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
 
     const hashedPassword = await hash(password);
     const username = generateUsername('-', 3);
-    const newUser = await prisma.users.create({
+    const newUser: any = await prisma.users.create({
       data: {
         email,
         phone,
@@ -68,7 +93,9 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
         last_login_ip: clientIP,
         last_login_ua: clientUA,
       },
-    }) as User;
+      ...userSelectWithPassword,
+    });
+    delete newUser.password
 
     const { accessToken, refreshToken } = await generateJWTTokens(newUser.id);
 
@@ -80,13 +107,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
       sameSite: 'lax',
     });
 
-    const profile = await prisma.profiles.findUnique({
-      where: { id: newUser.id },
-      ...profileSelect,
-    }) as Profile;
-    const userData = getUserData(newUser, profile);
-
-    return res.status(200).json({ accessToken, user: userData });
+    return res.status(200).json({ accessToken, user: newUser });
   } catch (error: any) {
     console.log('[AuthController](signup)', error.message);
     next(error);
@@ -102,14 +123,18 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const clientUA = req.get('User-Agent');
     const type = email ? 'email' : 'phone';
 
-    if (!(email && phone) || !password) {
+    if (!(email || phone) || !password) {
       return res
         .status(400)
         .json({ message: 'Email or phone and password must be provided' });
     }
 
-    const user = await prisma.users.findFirst({
-      where: { [type]: email || phone },
+    const user: any = await prisma.users.findFirst({
+      where: {
+        [type]: email || phone,
+        status: user_status.ACTIVE,
+      },
+      ...userSelectWithPassword
     });
 
     if (!user) {
@@ -117,10 +142,11 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     }
 
     const isPasswordCorrect = await verify(user.password, password);
-    const isUserActive = user.status === user_status.ACTIVE;
 
-    if (!isPasswordCorrect || !isUserActive) {
+    if (!isPasswordCorrect) {
       return res.status(401).json({ message: 'Unauthorized' });
+    } else {
+      delete user.password;
     }
 
     const { accessToken, refreshToken } = await generateJWTTokens(user.id);
@@ -142,13 +168,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       sameSite: 'lax',
     });
 
-    const profile = await prisma.profiles.findUnique({
-      where: { id: user.id },
-      ...profileSelect,
-    }) as Profile;
-    const userData = getUserData(user, profile);
-
-    return res.status(200).json({ accessToken, user: userData });
+    return res.status(200).json({ accessToken, user });
   } catch (error: any) {
     console.log('[AuthController](login)', error.message);
     next(error);
