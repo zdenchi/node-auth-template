@@ -7,7 +7,7 @@
 - [x] Logout
 - [x] Refresh tokens + invalidate old token
 - [x] Get user data + isAuth middleware
-- [ ] Change user password
+- [x] Change user password
 - [ ] Send email service
 - [ ] Send SMS service
 - [ ] Forgot + reset password
