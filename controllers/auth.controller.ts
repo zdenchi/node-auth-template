@@ -8,7 +8,7 @@ import { user_status } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const userSelect = Prisma.validator<Prisma.usersDefaultArgs>()({
+export const userSelect = Prisma.validator<Prisma.usersDefaultArgs>()({
   select: {
     id: true,
     email: true,
