@@ -22,28 +22,30 @@ model profiles {
 }
 
 model users {
-  id                        Int              @id @default(autoincrement())
-  username                  String?
-  email                     String?          @unique
-  email_confirmed_at        DateTime?        @db.Timestamptz(6)
-  confirmation_token        String?
-  confirmation_token_expire DateTime?        @db.Timestamptz(6)
-  phone                     String?          @unique
-  phone_confirmed_at        DateTime?        @db.Timestamptz(6)
-  recovery_token            String?
-  recovery_token_expire     DateTime?        @db.Timestamptz(6)
-  password                  String
-  registration_ip           String?
-  registration_ua           String?
-  last_login_at             DateTime?        @db.Timestamptz(6)
-  last_login_ip             String?
-  last_login_ua             String?
-  role                      String           @default("USER")
-  created_at                DateTime         @default(now()) @db.Timestamptz(6)
-  updated_at                DateTime?        @db.Timestamptz(6)
-  status                    user_status?     @default(ACTIVE)
-  profiles                  profiles?
-  refresh_tokens            refresh_tokens[]
+  id                              Int              @id @default(autoincrement())
+  username                        String?
+  email                           String?          @unique
+  email_verified_at               DateTime?        @db.Timestamptz(6)
+  email_verification_token        String?
+  email_verification_token_expire DateTime?        @db.Timestamptz(6)
+  phone                           String?          @unique
+  phone_verified_at               DateTime?        @db.Timestamptz(6)
+  recovery_token                  String?
+  recovery_token_expire           DateTime?        @db.Timestamptz(6)
+  password                        String
+  registration_ip                 String?
+  registration_ua                 String?
+  last_login_at                   DateTime?        @db.Timestamptz(6)
+  last_login_ip                   String?
+  last_login_ua                   String?
+  role                            String           @default("USER")
+  created_at                      DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at                      DateTime?        @db.Timestamptz(6)
+  status                          user_status?     @default(ACTIVE)
+  phone_verification_token        String?
+  phone_verification_token_expire DateTime?        @db.Timestamptz(6)
+  profiles                        profiles?
+  refresh_tokens                  refresh_tokens[]
 }
 
 model refresh_tokens {

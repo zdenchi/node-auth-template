@@ -14,8 +14,8 @@ export const userSelect = Prisma.validator<Prisma.usersDefaultArgs>()({
     email: true,
     phone: true,
     username: true,
-    email_confirmed_at: true,
-    phone_confirmed_at: true,
+    email_verified_at: true,
+    phone_verified_at: true,
     role: true,
     profiles: {
       select: {

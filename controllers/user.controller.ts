@@ -92,11 +92,11 @@ export const updateUser = async (req: AuthRequest, res: Response, next: NextFunc
 
     const updatedData: { email?: string, phone?: string } = {};
 
-    if (existingUser.phone_confirmed_at === null && phone) {
+    if (existingUser.phone_verified_at === null && phone) {
       updatedData.phone = phone;
     }
 
-    if (existingUser.email_confirmed_at === null && email) {
+    if (existingUser.email_verified_at === null && email) {
       updatedData.email = email;
     }
 
