@@ -267,7 +267,7 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
           MAIN_TEXT: "Ваш запит на відновлення паролю отримано. Натисніть на посилання нижче або скористайтеся кодом підтвердження, щоб встановити новий пароль.",
           BUTTON_TEXT: "Змінити пароль",
           TOKEN: token,
-          CONFIRM_URL: `https://${process.env.ALLOWED_ORIGIN}/api/auth/reset-password?token=${encryptedToken}`
+          CONFIRM_URL: `https://${process.env.ALLOWED_ORIGIN}/auth/reset-password?hash=${encryptedToken}`
         }
       });
     } else {
@@ -283,7 +283,7 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
 
 export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    let recovery_token = req.query?.token;
+    let recovery_token = req.query?.hash;
     const token = req.body?.token;
     const password = req.body?.password;
     const confirmPassword = req.body?.confirmPassword;
