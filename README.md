@@ -11,6 +11,7 @@
 - [x] Send email service
 - [x] Send SMS service
 - [x] Forgot + reset password
+- [x] Update phone or email
 - [ ] Email confirmation
 - [ ] Phone confirmation
 - [ ] Passwordless auth

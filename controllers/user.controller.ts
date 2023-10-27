@@ -6,6 +6,13 @@ import { hash, verify } from 'argon2';
 
 const prisma = new PrismaClient();
 
+type UpdatedUserData = {
+  email?: string;
+  phone?: string;
+  email_confirmed_at?: Date;
+  phone_confirmed_at?: Date;
+}
+
 export const getUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.userId;
@@ -70,3 +77,38 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
     next(error);
   }
 };
+
+export const updateUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const id = req.userId;
+  const email = req.body?.email;
+  const phone = req.body?.phone;
+
+  try {
+    const existingUser = await prisma.users.findUnique({ where: { id } });
+
+    if (!existingUser) {
+      return res.status(404).send('User not found');
+    }
+
+    const updatedData: { email?: string, phone?: string } = {};
+
+    if (existingUser.phone_confirmed_at === null && phone) {
+      updatedData.phone = phone;
+    }
+
+    if (existingUser.email_confirmed_at === null && email) {
+      updatedData.email = email;
+    }
+
+    const updatedUser = await prisma.users.update({
+      where: { id },
+      data: updatedData,
+      ...userSelect
+    });
+
+    return res.status(200).json(updatedUser);
+  } catch (error: any) {
+    console.log('[UserController](updateUser)', error.message);
+    next(error);
+  }
+}
