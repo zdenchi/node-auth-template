@@ -30,30 +30,29 @@ export const sendSMS = async ({ to, text }: SMSPayload) => {
 
   try {
     const response = await axios(options);
+    console.log(response.data);
     return response.status;
-  } catch (error) {
-    console.log('[sender](sendSMS):', error);
+  } catch (error: any) {
+    console.log('[sender](sendSMS):', error.message);
   }
 }
 
 export const sendEmail = async ({ to, subject, template, variables }: EmailPayload) => {
   const { MX_DOMAIN, MG_API_KEY } = process.env;
-  const options: AxiosRequestConfig = {
-    method: 'POST',
-    url: `https://api.eu.mailgun.net/v3/mg.${MX_DOMAIN}/messages`,
-    headers: { 'Content-Type': 'application/json' },
-    auth: { username: 'api', password: MG_API_KEY as string },
-    data: {
-      from: `noreply@${MX_DOMAIN}`,
-      to,
-      subject,
-      template,
-      'h:X-Mailgun-Variables': JSON.stringify(variables),
-    }
+  const url = `https://api.eu.mailgun.net/v3/mg.${MX_DOMAIN}/messages`;
+  const auth = { username: 'api', password: MG_API_KEY };
+
+  const data = {
+    from: `noreply@${MX_DOMAIN}`,
+    to,
+    subject,
+    template,
+    'h:X-Mailgun-Variables': JSON.stringify(variables),
   }
 
   try {
-    const response: AxiosResponse = await axios(options);
+    const response: AxiosResponse = await axios.post(url, new URLSearchParams(data), { auth } as AxiosRequestConfig);
+    console.log(response.data);
     return response.status;
   } catch (error) {
     console.log('[sender](sendEmail):', error);

@@ -18,6 +18,8 @@ function generateKeyPair() {
   mkdirSync(dirPath, { recursive: true });
   writeFileSync(`${dirPath}/public_key.pem`, publicKey);
   writeFileSync(`${dirPath}/private_key.pem`, privateKey);
+
+  console.log('Keys generated successfully.');
 }
 
 generateKeyPair();

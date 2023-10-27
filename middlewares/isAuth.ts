@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/token';
-import { PUBLIC_KEY } from '../config';
 
 export interface AuthRequest extends Request {
   userId?: number;
@@ -15,7 +14,7 @@ export const isAuth = async (req: AuthRequest, res: Response, next: NextFunction
   }
 
   try {
-    const decodedToken = await verifyToken(accessToken, PUBLIC_KEY) as any;
+    const decodedToken = await verifyToken(accessToken) as any;
     req.userId = parseInt(decodedToken.id);
     next();
   } catch (error: any) {

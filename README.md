@@ -10,7 +10,7 @@
 - [x] Change user password
 - [x] Send email service
 - [x] Send SMS service
-- [ ] Forgot + reset password
+- [x] Forgot + reset password
 - [ ] Email confirmation
 - [ ] Phone confirmation
 - [ ] Passwordless auth

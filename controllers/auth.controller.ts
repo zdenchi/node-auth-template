@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { generateUsername } from 'unique-username-generator';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { signToken } from '../utils/token';
-import { hash, verify } from 'argon2';
-import { PRIVATE_KEY } from '../config';
+import { signToken, generateAndEncryptToken, decryptToken } from '../utils/token';
+import * as argon2 from "argon2";
 import { user_status } from '@prisma/client';
+import { sendEmail, sendSMS } from '../utils/sender';
 
 const prisma = new PrismaClient();
 
@@ -40,9 +40,7 @@ export type User = Prisma.usersGetPayload<typeof userSelect>;
 export type UserWithPassword = Prisma.usersGetPayload<typeof userSelectWithPassword>;
 
 const generateJWTTokens = async (userId: number, refreshTokenParent: string | null = null) => {
-  const accessToken = await signToken({ id: userId }, PRIVATE_KEY, {
-    exp: '15m',
-  });
+  const accessToken = await signToken({ id: userId }, { exp: '15m' });
   const refreshToken = await prisma.refresh_tokens.create({
     data: { user_id: userId, parent: refreshTokenParent },
     select: { id: true },
@@ -58,17 +56,12 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     const email = req.body?.email || null;
     const phone = req.body?.phone || null;
     const password = req.body?.password;
-    const confirmPassword = req.body?.confirmPassword;
     const clientIP = req.ip;
     const clientUA = req.headers['user-agent'];
     const type = email ? 'email' : 'phone';
 
-    if (!(email || phone) || !(password && confirmPassword)) {
+    if (!password || !(email || phone)) {
       return res.status(400).json({ message: 'Bad Request' });
-    }
-
-    if (password !== confirmPassword) {
-      return res.status(400).json({ message: 'Password mismatch' });
     }
 
     const user = await prisma.users.findFirst({
@@ -79,7 +72,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
       return res.status(409).json({ message: 'User already exists.' });
     }
 
-    const hashedPassword = await hash(password);
+    const hashedPassword = await argon2.hash(password);
     const username = generateUsername('-', 3);
     const newUser: any = await prisma.users.create({
       data: {
@@ -89,7 +82,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
         username,
         registration_ip: clientIP,
         registration_ua: clientUA,
-        last_login_at: new Date().toISOString(),
+        last_login_at: new Date(),
         last_login_ip: clientIP,
         last_login_ua: clientUA,
       },
@@ -123,7 +116,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const clientUA = req.get('User-Agent');
     const type = email ? 'email' : 'phone';
 
-    if (!(email || phone) || !password) {
+    if (!password || !(email || phone)) {
       return res
         .status(400)
         .json({ message: 'Email or phone and password must be provided' });
@@ -141,7 +134,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const isPasswordCorrect = await verify(user.password, password);
+    const isPasswordCorrect = await argon2.verify(user.password, password);
 
     if (!isPasswordCorrect) {
       return res.status(401).json({ message: 'Unauthorized' });
@@ -154,7 +147,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     await prisma.users.update({
       where: { id: user.id },
       data: {
-        last_login_at: new Date().toISOString(),
+        last_login_at: new Date(),
         last_login_ip: clientIP,
         last_login_ua: clientUA,
       },
@@ -226,6 +219,129 @@ export const refreshTokens = async (req: Request, res: Response, next: NextFunct
     return res.status(200).json({ accessToken });
   } catch (error: any) {
     console.log('[AuthController](refreshTokens)', error.message);
+    next(error);
+  }
+}
+
+export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const email = req.body?.email || null;
+    const phone = req.body?.phone || null;
+    const type = email ? 'email' : 'phone';
+
+    if (!(email || phone)) {
+      return res.status(400).json({ message: 'Bad Request' });
+    }
+
+    const user = await prisma.users.findFirst({
+      where: { [type]: email || phone },
+    });
+
+    if (!user) return res.status(200).send('OK');
+
+    let { recovery_token, recovery_token_expire } = user;
+    let { token, encryptedToken } = generateAndEncryptToken(null);
+
+    const tokenExpire = recovery_token_expire ? new Date(recovery_token_expire) : new Date();
+    const isTokenExpire = tokenExpire.getTime() <= new Date().getTime();
+
+    if (!isTokenExpire && recovery_token) {
+      encryptedToken = recovery_token;
+      token = decryptToken(recovery_token);
+    }
+
+    await prisma.users.update({
+      where: { id: user.id },
+      data: {
+        recovery_token: encryptedToken,
+        recovery_token_expire: new Date(Date.now() + 3600000),
+      },
+    });
+
+    if (email) {
+      const response = await sendEmail({
+        to: email,
+        subject: 'Відновлення паролю',
+        template: 'confirm-mail',
+        variables: {
+          MAIN_TEXT: "Ваш запит на відновлення паролю отримано. Натисніть на посилання нижче або скористайтеся кодом підтвердження, щоб встановити новий пароль.",
+          BUTTON_TEXT: "Змінити пароль",
+          TOKEN: token,
+          CONFIRM_URL: `https://${process.env.ALLOWED_ORIGIN}/api/auth/reset-password?token=${encryptedToken}`
+        }
+      });
+    } else {
+      const response = await sendSMS({ to: phone, text: `Код підтвердження: ${token}` });
+    }
+
+    return res.status(200).send('OK');
+  } catch (error: any) {
+    console.log('[AuthController](forgotPassword)', error.message);
+    next(error);
+  }
+}
+
+export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    let recovery_token = req.query?.token;
+    const token = req.body?.token;
+    const password = req.body?.password;
+    const confirmPassword = req.body?.confirmPassword;
+    const clientIP = req.ip;
+    const clientUA = req.get('User-Agent');
+
+    if (!password || !confirmPassword || !(token || recovery_token)) {
+      return res.status(400).json({ message: 'Bad Request' });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: 'Password mismatch' });
+    }
+
+    if (!recovery_token) {
+      const { encryptedToken } = generateAndEncryptToken(token);
+      recovery_token = encryptedToken;
+    }
+
+    const user = await prisma.users.findFirst({
+      where: {
+        recovery_token: recovery_token as string,
+        recovery_token_expire: { gt: new Date() },
+      },
+      ...userSelect
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid token' });
+    }
+
+    const hashedPassword = await argon2.hash(password);
+
+    await prisma.users.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        recovery_token: null,
+        recovery_token_expire: null,
+        last_login_at: new Date(),
+        last_login_ip: clientIP,
+        last_login_ua: clientUA,
+      },
+    });
+
+    const { accessToken, refreshToken } = await generateJWTTokens(user.id);
+
+    res.cookie('refresh-token', refreshToken, {
+      path: '/',
+      maxAge: 60 * 24 * 60 * 60 * 1000, // 60 days
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
+    return res.status(200).json({ accessToken, user });
+  } catch (error: any) {
+    console.log('[AuthController](resetPassword)', error.message);
     next(error);
   }
 }
