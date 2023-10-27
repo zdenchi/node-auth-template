@@ -12,7 +12,7 @@
 - [x] Send SMS service
 - [x] Forgot + reset password
 - [x] Update phone or email
-- [ ] Email confirmation
+- [x] Email verification
 - [ ] Phone confirmation
 - [ ] Passwordless auth
 - [ ] Social auth google
