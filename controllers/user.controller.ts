@@ -210,3 +210,36 @@ export const verifyEmail = async (req: AuthRequest, res: Response, next: NextFun
     next(error);
   }
 }
+
+export const verifyPhone = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const token = req.body?.token;
+    const { encryptedToken: verification_token } = generateAndEncryptToken(token);
+
+    const user = await prisma.users.findFirst({
+      where: {
+        phone_verification_token: verification_token as string,
+        phone_verification_token_expire: { gt: new Date() },
+      },
+      ...userSelect
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid token' });
+    }
+
+    await prisma.users.update({
+      where: { id: user.id },
+      data: {
+        phone_verification_token: null,
+        phone_verification_token_expire: null,
+        phone_verified_at: new Date(),
+      },
+    });
+
+    return res.status(200).json(user);
+  } catch (error: any) {
+    console.log('[UserController](verifyPhone)', error.message);
+    next(error);
+  }
+}

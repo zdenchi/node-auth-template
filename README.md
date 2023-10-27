@@ -13,10 +13,10 @@
 - [x] Forgot + reset password
 - [x] Update phone or email
 - [x] Email verification
-- [ ] Phone confirmation
-- [ ] Passwordless auth
+- [x] Phone verification
+- [ ] <s>Passwordless auth</s>
 - [ ] Social auth google
 - [ ] User impersonation
 - [ ] Fail login limit
 - [ ] Requests limit
-- [ ] Migrate refresh_tokents table to redi
+- [ ] Migrate refresh_tokens table to redis

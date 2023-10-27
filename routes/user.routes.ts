@@ -6,6 +6,7 @@ import {
   updateUser,
   sendVerificationCode,
   verifyEmail,
+  verifyPhone,
 } from '../controllers/user.controller';
 
 const router = Router();
@@ -15,6 +16,7 @@ router
   .patch('/change-password', changePassword)
   .patch('/update', updateUser)
   .post('/verify', sendVerificationCode)
-  .patch('/verify-email', verifyEmail);
+  .patch('/verify-email', verifyEmail)
+  .patch('/verify-phone', verifyPhone);
 
 export default router;
