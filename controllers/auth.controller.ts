@@ -5,7 +5,6 @@ import { signToken, generateAndEncryptToken, decryptToken } from '../utils/token
 import * as argon2 from "argon2";
 import { user_status } from '@prisma/client';
 import { sendEmail, sendSMS } from '../utils/sender';
-import * as emailValidator from 'deep-email-validator'
 
 const prisma = new PrismaClient();
 
@@ -50,22 +49,6 @@ const generateJWTTokens = async (userId: number, refreshTokenParent: string | nu
     accessToken,
     refreshToken: refreshToken.id,
   };
-};
-
-const isEmailValid = async (value: string) => {
-  const options = {
-    email: value,
-    validateRegex: true,
-    validateMx: true,
-    validateTypo: true,
-    validateDisposable: true,
-    validateSMTP: true,
-  }
-  if (!value.includes('@gmail.com')) {
-    options.validateSMTP = false;
-  };
-  const { valid } = await emailValidator.validate(options);
-  return valid;
 };
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
