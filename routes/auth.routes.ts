@@ -1,5 +1,5 @@
 import { Router } from 'express';
-
+import schemaValidator from "../middlewares/schemaValidator";
 import {
   signup,
   login,
@@ -12,11 +12,11 @@ import {
 const router = Router();
 
 router
-  .post('/signup', signup)
-  .post('/login', login)
+  .post('/signup', schemaValidator("auth"), signup)
+  .post('/login', schemaValidator("auth"), login)
   .get('/logout', logout)
   .get('/refresh-tokens', refreshTokens)
-  .post('/forgot-password', forgotPassword)
-  .patch('/reset-password', resetPassword);
+  .post('/forgot-password', schemaValidator("emailOrPhone"), forgotPassword)
+  .patch('/reset-password', schemaValidator("resetPassword"), resetPassword);
 
 export default router;

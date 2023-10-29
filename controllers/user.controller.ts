@@ -2,19 +2,12 @@ import { Response, NextFunction } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { AuthRequest } from '../types';
 import { userSelect } from './auth.controller';
-import { hash, verify } from 'argon2';
+import * as argon2 from "argon2";
 import { generateAndEncryptToken, decryptToken } from '../utils/token';
 import { sendEmail, sendSMS } from '../utils/sender';
 import { VerificationType } from '../types';
 
 const prisma = new PrismaClient();
-
-type UpdatedUserData = {
-  email?: string;
-  phone?: string;
-  email_confirmed_at?: Date;
-  phone_confirmed_at?: Date;
-}
 
 export const getUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -40,17 +33,6 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
     const id = req.userId;
     const oldPassword = req.body?.oldPassword;
     const newPassword = req.body?.newPassword;
-    const confirmPassword = req.body?.confirmPassword;
-
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      return res
-        .status(401)
-        .json({ message: 'Old password, new password and password confirm must be provided' });
-    }
-
-    if (newPassword !== confirmPassword) {
-      return res.status(400).json({ message: 'New password and password confirm must match' });
-    }
 
     const user = await prisma.users.findUnique({
       where: { id },
@@ -61,13 +43,13 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
       return res.status(404).send('User not found');
     }
 
-    const isPasswordCorrect = await verify(user.password, oldPassword);
+    const isPasswordCorrect = await argon2.verify(user.password, oldPassword);
 
     if (!isPasswordCorrect) {
       return res.status(400).json({ message: 'Old password is incorrect' });
     }
 
-    const hashedPassword = await hash(newPassword);
+    const hashedPassword = await argon2.hash(newPassword);
 
     await prisma.users.update({
       where: { id },
@@ -120,9 +102,9 @@ export const sendVerificationCode = async (req: AuthRequest, res: Response, next
   const id = req.userId;
   const type: VerificationType = req.body?.type;
 
-  if (!type) {
-    return res.status(400).json({ message: 'Verification type must be provided' });
-  }
+  // if (!type) {
+  //   return res.status(400).json({ message: 'Verification type must be provided' });
+  // }
 
   try {
     const user = await prisma.users.findUnique({ where: { id } });
@@ -175,17 +157,17 @@ export const sendVerificationCode = async (req: AuthRequest, res: Response, next
 
 export const verifyEmail = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    let verification_token = req.query?.hash;
+    let hash = req.body?.hash;
     const token = req.body?.token;
 
-    if (!verification_token) {
+    if (!hash) {
       const { encryptedToken } = generateAndEncryptToken(token);
-      verification_token = encryptedToken;
+      hash = encryptedToken;
     }
 
     const user = await prisma.users.findFirst({
       where: {
-        email_verification_token: verification_token as string,
+        email_verification_token: hash as string,
         email_verification_token_expire: { gt: new Date() },
       },
       ...userSelect

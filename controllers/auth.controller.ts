@@ -5,6 +5,7 @@ import { signToken, generateAndEncryptToken, decryptToken } from '../utils/token
 import * as argon2 from "argon2";
 import { user_status } from '@prisma/client';
 import { sendEmail, sendSMS } from '../utils/sender';
+import * as emailValidator from 'deep-email-validator'
 
 const prisma = new PrismaClient();
 
@@ -51,6 +52,22 @@ const generateJWTTokens = async (userId: number, refreshTokenParent: string | nu
   };
 };
 
+const isEmailValid = async (value: string) => {
+  const options = {
+    email: value,
+    validateRegex: true,
+    validateMx: true,
+    validateTypo: true,
+    validateDisposable: true,
+    validateSMTP: true,
+  }
+  if (!value.includes('@gmail.com')) {
+    options.validateSMTP = false;
+  };
+  const { valid } = await emailValidator.validate(options);
+  return valid;
+};
+
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const email = req.body?.email || null;
@@ -59,10 +76,6 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     const clientIP = req.ip;
     const clientUA = req.headers['user-agent'];
     const type = email ? 'email' : 'phone';
-
-    if (!password || !(email || phone)) {
-      return res.status(400).json({ message: 'Bad Request' });
-    }
 
     const user = await prisma.users.findFirst({
       where: { [type]: email || phone },
@@ -115,12 +128,6 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const clientIP = req.ip;
     const clientUA = req.get('User-Agent');
     const type = email ? 'email' : 'phone';
-
-    if (!password || !(email || phone)) {
-      return res
-        .status(400)
-        .json({ message: 'Email or phone and password must be provided' });
-    }
 
     const user: any = await prisma.users.findFirst({
       where: {
@@ -229,10 +236,6 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     const phone = req.body?.phone || null;
     const type = email ? 'email' : 'phone';
 
-    if (!(email || phone)) {
-      return res.status(400).json({ message: 'Bad Request' });
-    }
-
     const user = await prisma.users.findFirst({
       where: { [type]: email || phone },
     });
@@ -283,29 +286,20 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
 
 export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    let recovery_token = req.query?.hash;
+    let hash = req.body?.hash;
     const token = req.body?.token;
     const password = req.body?.password;
-    const confirmPassword = req.body?.confirmPassword;
     const clientIP = req.ip;
     const clientUA = req.get('User-Agent');
 
-    if (!password || !confirmPassword || !(token || recovery_token)) {
-      return res.status(400).json({ message: 'Bad Request' });
-    }
-
-    if (password !== confirmPassword) {
-      return res.status(400).json({ message: 'Password mismatch' });
-    }
-
-    if (!recovery_token) {
+    if (!hash) {
       const { encryptedToken } = generateAndEncryptToken(token);
-      recovery_token = encryptedToken;
+      hash = encryptedToken;
     }
 
     const user = await prisma.users.findFirst({
       where: {
-        recovery_token: recovery_token as string,
+        recovery_token: hash as string,
         recovery_token_expire: { gt: new Date() },
       },
       ...userSelect
