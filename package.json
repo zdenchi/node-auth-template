@@ -28,6 +28,7 @@
     "jose": "^4.15.4",
     "libphonenumber-js": "^1.10.48",
     "prisma": "^5.4.2",
+    "qs": "^6.11.2",
     "unique-username-generator": "^1.2.0"
   },
   "scripts": {

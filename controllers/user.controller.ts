@@ -36,11 +36,15 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
 
     const user = await prisma.users.findUnique({
       where: { id },
-      select: { password: true }
+      select: { password: true, provider: true }
     });
 
     if (!user) {
       return res.status(404).send('User not found');
+    }
+
+    if (!user.password) {
+      return res.status(400).json({ message: 'You are registered with a social network' });
     }
 
     const isPasswordCorrect = await argon2.verify(user.password, oldPassword);
@@ -101,10 +105,6 @@ export const updateUser = async (req: AuthRequest, res: Response, next: NextFunc
 export const sendVerificationCode = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const id = req.userId;
   const type: VerificationType = req.body?.type;
-
-  // if (!type) {
-  //   return res.status(400).json({ message: 'Verification type must be provided' });
-  // }
 
   try {
     const user = await prisma.users.findUnique({ where: { id } });

@@ -1,20 +1,22 @@
 import * as jose from 'jose';
 import { randomInt, createCipheriv, createDecipheriv } from 'node:crypto';
-import { PRIVATE_KEY, PUBLIC_KEY, SECRET_KEY, SECRET_IV } from '../config';
+import { PRIVATE_KEY, PUBLIC_KEY, CONFORMATION_SECRET_KEY, CONFORMATION_SECRET_IV } from '../config';
 
-const secretKey = Buffer.from(SECRET_KEY as string, 'utf-8');
-const iv = Buffer.from(SECRET_IV as string, 'utf-8');
+const secretKey = Buffer.from(CONFORMATION_SECRET_KEY as string, 'utf-8');
+const iv = Buffer.from(CONFORMATION_SECRET_IV as string, 'utf-8');
 
 export const signToken = async (
-  payload: jose.JWTPayload,
-  options: { exp: string }
+  sub: string | number,
+  exp: string,
+  payload: jose.JWTPayload = { },
 ): Promise<string> => {
   try {
     const privateKey = await jose.importPKCS8(PRIVATE_KEY, 'EdDSA');
     const jwt = await new jose.SignJWT(payload)
       .setProtectedHeader({ alg: 'EdDSA', typ: 'JWT' })
       .setIssuedAt()
-      .setExpirationTime(options.exp)
+      .setSubject(String(sub))
+      .setExpirationTime(exp)
       .sign(privateKey);
     return jwt;
   } catch (error: any) {

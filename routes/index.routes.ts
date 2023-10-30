@@ -6,7 +6,6 @@ import userRoutes from './user.routes';
 const router = Router();
 
 router
-  .get('/', (req, res) => res.send('Hello World!'))
   .use('/auth', authRoutes)
   .use('/user', isAuth, userRoutes);
 

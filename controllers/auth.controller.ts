@@ -5,6 +5,7 @@ import { signToken, generateAndEncryptToken, decryptToken } from '../utils/token
 import * as argon2 from "argon2";
 import { user_status } from '@prisma/client';
 import { sendEmail, sendSMS } from '../utils/sender';
+import { getGoogleOauthToken, getGoogleUser } from '../utils/session';
 
 const prisma = new PrismaClient();
 
@@ -39,10 +40,10 @@ const userSelectWithPassword = Prisma.validator<Prisma.usersDefaultArgs>()({
 export type User = Prisma.usersGetPayload<typeof userSelect>;
 export type UserWithPassword = Prisma.usersGetPayload<typeof userSelectWithPassword>;
 
-const generateJWTTokens = async (userId: number, refreshTokenParent: string | null = null) => {
-  const accessToken = await signToken({ id: userId }, { exp: '15m' });
+const generateJWTTokens = async (user_id: number, refreshTokenParent: string | null = null) => {
+  const accessToken = await signToken(user_id, '15m');
   const refreshToken = await prisma.refresh_tokens.create({
-    data: { user_id: userId, parent: refreshTokenParent },
+    data: { user_id, parent: refreshTokenParent },
     select: { id: true },
   });
   return {
@@ -322,3 +323,81 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     next(error);
   }
 }
+
+export const googleOauthHandler = async (req: Request, res: Response, next: NextFunction) => {
+  const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN as unknown as string;
+
+  try {
+    // Get the code from the query
+    const code = req.query.code as string;
+    const clientIP = req.ip;
+    const clientUA = req.headers['user-agent'];
+
+    if (!code) {
+      return res.status(401).send('Authorization code not provided!');
+    }
+
+    // Use the code to get the id and access tokens
+    const { id_token, access_token } = await getGoogleOauthToken({ code });
+
+    // Use the token =to get the User
+    const { verified_email, email } = await getGoogleUser({
+      id_token,
+      access_token,
+    });
+
+    // Check if user is verified
+    if (!verified_email) {
+      return res.status(403).send('Google account not verified!');
+    }
+
+    // Update user if user already exist or create new user
+    const user = await prisma.users.upsert({
+      where: { email },
+      update: {
+        email_verified_at: new Date(),
+        provider: 'Google',
+        last_login_at: new Date(),
+        last_login_ip: clientIP,
+        last_login_ua: clientUA,
+      },
+      create: {
+        email,
+        provider: 'Google',
+        email_verified_at: new Date(),
+        username: generateUsername('-', 3),
+        registration_ip: clientIP,
+        registration_ua: clientUA,
+        last_login_at: new Date(),
+        last_login_ip: clientIP,
+        last_login_ua: clientUA,
+      },
+      ...userSelect,
+    });
+
+    // Create access and refresh token
+    const { accessToken, refreshToken } = await generateJWTTokens(user.id);
+
+    // Send cookie
+    res.cookie('refresh-token', refreshToken, {
+      path: '/',
+      maxAge: 60 * 24 * 60 * 60 * 1000, // 60 days
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
+    res.cookie('access-token', accessToken, {
+      path: '/',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    })
+
+    return res.status(200).redirect(`${FRONTEND_ORIGIN}/api/auth/google`);
+  } catch (error: any) {
+    console.log('[AuthController](googleOauthHandler)', error.message);
+    next(error);
+  }
+};

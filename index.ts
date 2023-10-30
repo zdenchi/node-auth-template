@@ -8,7 +8,9 @@ import express, { json, Request, Response, NextFunction } from 'express';
 import router from './routes/index.routes';
 
 const app = express();
-const { SENTRY_DSN, PORT, ALLOWED_ORIGIN, NODE_ENV } = process.env;
+const { SENTRY_DSN, PORT, NODE_ENV } = process.env;
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN as unknown as string;
+const ALLOWED_ORIGIN = process.env.FRONTEND_ORIGIN as unknown as string;
 
 if (NODE_ENV === 'production') {
   if (!SENTRY_DSN) {
@@ -33,12 +35,12 @@ if (NODE_ENV === 'production') {
 
 app.use(
   cors({
-    origin: ALLOWED_ORIGIN,
+    origin: [ALLOWED_ORIGIN, FRONTEND_ORIGIN],
     credentials: true,
   })
 );
 app.use(helmet());
-app.use(json());
+app.use(json({ limit: "10kb" }));
 app.use(cookieParser());
 app.use(router);
 

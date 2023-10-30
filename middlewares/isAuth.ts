@@ -15,7 +15,7 @@ export const isAuth = async (req: AuthRequest, res: Response, next: NextFunction
 
   try {
     const decodedToken = await verifyToken(accessToken) as any;
-    req.userId = parseInt(decodedToken.id);
+    req.userId = parseInt(decodedToken.sub);
     next();
   } catch (error: any) {
     console.log('[middlewares](isAuth):', error.message);
