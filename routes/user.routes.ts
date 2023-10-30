@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import schemaValidator from "../middlewares/schemaValidator";
+import { schemaValidator } from "../middlewares";
 import {
   getUser,
   changePassword,

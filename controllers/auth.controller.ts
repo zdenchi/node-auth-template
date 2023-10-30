@@ -40,10 +40,10 @@ const userSelectWithPassword = Prisma.validator<Prisma.usersDefaultArgs>()({
 export type User = Prisma.usersGetPayload<typeof userSelect>;
 export type UserWithPassword = Prisma.usersGetPayload<typeof userSelectWithPassword>;
 
-const generateJWTTokens = async (user_id: number, refreshTokenParent: string | null = null) => {
-  const accessToken = await signToken(user_id, '15m');
+const generateJWTTokens = async (id: number, refreshTokenParent: string | null = null) => {
+  const accessToken = await signToken({ sub: String(id), exp: 900000 });
   const refreshToken = await prisma.refresh_tokens.create({
-    data: { user_id, parent: refreshTokenParent },
+    data: { user_id: id, parent: refreshTokenParent },
     select: { id: true },
   });
   return {
@@ -401,3 +401,28 @@ export const googleOauthHandler = async (req: Request, res: Response, next: Next
     next(error);
   }
 };
+
+export const signinAsUser = async (req: Request, res: Response, next: NextFunction) => {
+  const id = req.body?.userId;
+
+  const user = await prisma.users.findUnique({
+    where: { id },
+    ...userSelect
+  });
+
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  const { accessToken, refreshToken } = await generateJWTTokens(user.id);
+
+  res.cookie('refresh-token', refreshToken, {
+    path: '/',
+    maxAge: 60 * 24 * 60 * 60 * 1000, // 60 days
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+  });
+
+  return res.status(200).json({ accessToken, user });
+}

@@ -27,7 +27,7 @@ const validationOptions = {
   stripUnknown: false,
 };
 
-const schemaValidator = (path: string, useJoiError = true): RequestHandler => {
+export const schemaValidator = (path: string, useJoiError = true): RequestHandler => {
   const schema = schemas[path];
 
   if (!schema) {
@@ -68,5 +68,3 @@ const schemaValidator = (path: string, useJoiError = true): RequestHandler => {
     return next();
   };
 };
-
-export default schemaValidator;

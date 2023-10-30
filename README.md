@@ -15,9 +15,7 @@
 - [x] Email verification
 - [x] Phone verification
 - [x] Validate user input
-- [ ] <s>Passwordless auth</s>
 - [x] Social auth google
-- [ ] User impersonation
 - [ ] Fail login limit
 - [ ] Requests limit
 - [ ] Migrate refresh_tokens table to redis

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import schemaValidator from "../middlewares/schemaValidator";
+import { schemaValidator } from "../middlewares";
 import {
   signup,
   login,
@@ -7,7 +7,7 @@ import {
   refreshTokens,
   forgotPassword,
   resetPassword,
-  googleOauthHandler
+  googleOauthHandler,
 } from '../controllers/auth.controller';
 
 const router = Router();
